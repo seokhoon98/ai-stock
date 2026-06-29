@@ -21,6 +21,8 @@ from ai_helper import (
     generate_financial_commentary,
     generate_rebalancing_table,
     generate_watchlist_suggestions,
+    get_usage as get_gemini_usage,
+    reset_usage as reset_gemini_usage,
     DIRECTION_OPTIONS,
     MARKET_CAP_OPTIONS,
     STYLE_OPTIONS,
@@ -86,6 +88,17 @@ def render_sidebar():
         "종목코드 (쉼표로 구분)", value=DEFAULT_WATCHLIST, key="watchlist_raw",
         help="6자리 종목코드를 쉼표로 구분해서 입력하세요.",
     )
+
+    # ── Gemini 사용량 ──
+    usage = get_gemini_usage()
+    with st.sidebar.expander("🤖 Gemini 사용량 (이번 세션)", expanded=False):
+        st.metric("API 호출 수", f"{usage['calls']}회")
+        st.metric("입력 토큰",   f"{usage['prompt_tokens']:,}")
+        st.metric("출력 토큰",   f"{usage['output_tokens']:,}")
+        st.metric("총 토큰",     f"{usage['total_tokens']:,}")
+        if st.button("사용량 초기화", key="reset_usage"):
+            reset_gemini_usage()
+            st.rerun()
 
     gemini_keys, dart_key = load_secrets()
 
