@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 
 import requests
 
-DART_BASE = "https://opendart.fss.no.kr/api"
+DART_BASE = "https://opendart.fss.or.kr/api"
 
 # 계정명 후보 (느슨한 부분일치 매칭용)
 ACCOUNT_ALIASES = {
