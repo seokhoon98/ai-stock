@@ -16,7 +16,7 @@ import plotly.express as px
 import streamlit as st
 
 from kis_client import KISClient, KISApiError
-from dart_client import get_financial_summary, DartApiError
+from dart_client import get_financial_summary, get_valuation_metrics, DartApiError
 from ai_helper import (
     generate_financial_commentary,
     generate_rebalancing_table,
@@ -394,6 +394,7 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
         try:
             with st.spinner("Yahoo Finance에서 재무 데이터를 가져오는 중..."):
                 financials = get_financial_summary("", symbol, {}, sorted(years))
+                valuation  = get_valuation_metrics(symbol)
         except DartApiError as e:
             st.error(str(e))
             return
@@ -403,22 +404,52 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
             return
 
         fin_store = st.session_state.get("fin_data", {})
-        fin_store[tab_key] = {"label": label, "financials": financials}
+        fin_store[tab_key] = {"label": label, "financials": financials, "valuation": valuation}
         st.session_state["fin_data"] = fin_store
 
     fin_store = st.session_state.get("fin_data", {})
     fin = fin_store.get(tab_key)
     if fin:
         financials = fin["financials"]
-        df = pd.DataFrame(financials)[["year", "revenue", "operating_profit", "net_income", "debt_ratio", "roe"]]
-        df.columns = ["연도", "매출액", "영업이익", "순이익", "부채비율(%)", "ROE(%)"]
-        st.dataframe(
-            df.style.format({
-                "매출액": "{:,.0f}", "영업이익": "{:,.0f}", "순이익": "{:,.0f}",
-                "부채비율(%)": "{:.1f}", "ROE(%)": "{:.1f}",
-            }),
-            use_container_width=True, hide_index=True,
-        )
+        valuation  = fin.get("valuation", {})
+
+        def _fmt(v, suffix="", decimals=2):
+            return f"{v:.{decimals}f}{suffix}" if v is not None else "-"
+
+        # ── 현재 밸류에이션 지표 ──
+        st.markdown("**📊 현재 밸류에이션**")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("PER (TTM)",   _fmt(valuation.get("per"), "배", 1))
+        c2.metric("선행 PER",    _fmt(valuation.get("forward_per"), "배", 1))
+        c3.metric("PBR",         _fmt(valuation.get("pbr"), "배", 2))
+        c4.metric("EPS",         _fmt(valuation.get("eps"), "원", 0))
+
+        c5, c6, c7, c8 = st.columns(4)
+        c5.metric("ROE",         _fmt(valuation.get("roe"), "%", 1))
+        c6.metric("ROIC",        _fmt(valuation.get("roic"), "%", 1))
+        c7.metric("영업이익률",   _fmt(valuation.get("op_margin"), "%", 1))
+        c8.metric("부채비율",     _fmt(valuation.get("debt_ratio"), "%", 1))
+
+        c9, c10, *_ = st.columns(4)
+        c9.metric("배당수익률",   _fmt(valuation.get("dividend_yield"), "%", 2))
+
+        st.divider()
+
+        # ── 연간 재무 추이 ──
+        st.markdown("**📈 연간 재무 추이**")
+        cols_map = {
+            "year": "연도", "revenue": "매출액", "operating_profit": "영업이익",
+            "net_income": "순이익", "op_margin": "영업이익률(%)",
+            "debt_ratio": "부채비율(%)", "roe": "ROE(%)", "roic": "ROIC(%)",
+        }
+        df_raw = pd.DataFrame(financials)
+        avail = [c for c in cols_map if c in df_raw.columns]
+        df = df_raw[avail].rename(columns=cols_map)
+        money_cols = [v for k, v in cols_map.items() if k in ["revenue", "operating_profit", "net_income"] and v in df.columns]
+        pct_cols   = [v for k, v in cols_map.items() if k in ["op_margin", "debt_ratio", "roe", "roic"] and v in df.columns]
+        fmt = {c: "{:,.0f}" for c in money_cols}
+        fmt.update({c: "{:.1f}" for c in pct_cols})
+        st.dataframe(df.style.format(fmt, na_rep="-"), use_container_width=True, hide_index=True)
 
         if cfg["gemini_api_key"]:
             if st.button("AI 코멘트 생성", key=f"gen_commentary_{tab_key}"):
