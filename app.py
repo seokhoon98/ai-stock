@@ -127,6 +127,21 @@ def kis_ready(cfg):
     return bool(cfg["kis_app_key"] and cfg["kis_app_secret"] and cfg["kis_account_no"])
 
 
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def _get_stock_name_yf(symbol: str) -> str:
+    """KIS에서 종목명을 가져오지 못할 때 yfinance로 fallback."""
+    try:
+        import yfinance as yf
+        for suffix in [".KS", ".KQ"]:
+            t = yf.Ticker(f"{symbol}{suffix}")
+            name = t.info.get("shortName") or t.info.get("longName") or ""
+            if name:
+                return name
+    except Exception:
+        pass
+    return symbol  # 최후엔 코드 자체를 표시
+
+
 # ----------------------------------------------------------------------
 # 섹션 1: 자산 현황
 # ----------------------------------------------------------------------
@@ -340,9 +355,16 @@ def section_watchlist(cfg):
                 cfg["kis_app_key"], cfg["kis_app_secret"], cfg["kis_account_no"],
                 cfg["kis_is_virtual"], symbol,
             )
-            name = (price_data.get("hts_kor_isnm") or "").strip()
+            # KIS API 여러 필드 시도
+            name = (
+                (price_data.get("hts_kor_isnm") or "").strip()
+                or (price_data.get("bstp_kor_isnm") or "").strip()
+            )
+            # KIS에 없으면 세션 저장 이름 → yfinance 순으로 fallback
             if not name:
-                name = name_map.get(symbol, symbol)
+                name = name_map.get(symbol, "")
+            if not name:
+                name = _get_stock_name_yf(symbol)
             rows.append({
                 "종목코드": symbol,
                 "종목명": name,
