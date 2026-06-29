@@ -276,19 +276,19 @@ def section_ai_watchlist_picker(cfg, holdings):
         for c in candidates:
             code = c.get("종목코드", "-")
             name = c.get("종목명", "-")
-            url = f"https://finance.naver.com/item/main.naver?code={code}#{name}" if code != "-" else ""
             display_rows.append({
-                "종목명": url,
+                "종목명": name,
                 "종목코드": code,
                 "테마": c.get("테마", "-"),
                 "현재가": c.get("현재가"),
                 "추천 이유": c.get("추천 이유", "-"),
+                "🔗": f"https://finance.naver.com/item/main.naver?code={code}" if code != "-" else "",
             })
         df = pd.DataFrame(display_rows)
         fmt = {"현재가": "{:,.0f}"} if "현재가" in df.columns and df["현재가"].notna().any() else {}
         st.dataframe(
             df.style.format(fmt),
-            column_config={"종목명": st.column_config.LinkColumn("종목명", display_text=r"#(.+)$")},
+            column_config={"🔗": st.column_config.LinkColumn("🔗", display_text="🔗")},
             use_container_width=True, hide_index=True,
         )
         st.caption(AI_DISCLAIMER)
@@ -348,16 +348,17 @@ def section_watchlist(cfg):
             code = r["종목코드"]
             name = r["종목명"]
             display.append({
-                "종목명": f"https://finance.naver.com/item/main.naver?code={code}#{name}",
+                "종목명": name,
                 "종목코드": code,
                 "현재가": r["현재가"],
                 "전일대비": r["전일대비"],
                 "등락률(%)": r["등락률(%)"],
+                "🔗": f"https://finance.naver.com/item/main.naver?code={code}",
             })
         df = pd.DataFrame(display)
         st.dataframe(
             df.style.format({"현재가": "{:,.0f}", "전일대비": "{:,.0f}", "등락률(%)": "{:.2f}"}),
-            column_config={"종목명": st.column_config.LinkColumn("종목명", display_text=r"#(.+)$")},
+            column_config={"🔗": st.column_config.LinkColumn("🔗", display_text="🔗")},
             use_container_width=True, hide_index=True,
         )
     for err in errors:
