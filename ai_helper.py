@@ -98,23 +98,76 @@ def _generate(api_key: str | list, model: str, prompt: str, timeout: int = 30) -
     raise last_exc
 
 
-def generate_financial_commentary(api_key: str, model: str, stock_name: str, financials: list) -> str:
-    """핵심 재무 데이터를 바탕으로 한 줄 코멘터리 생성."""
+def generate_financial_commentary(
+    api_key: str, model: str, stock_name: str, financials: list, valuation: dict = None
+) -> str:
+    """애널리스트 리포트 수준의 재무 분석 코멘터리 생성."""
     if not financials:
         return "분석에 사용할 재무 데이터가 부족합니다."
 
+    def fmt(v, unit="억원", div=1e8):
+        if v is None:
+            return "N/A"
+        try:
+            return f"{v/div:,.0f}{unit}"
+        except Exception:
+            return str(v)
+
+    def pct(v):
+        return f"{v:.1f}%" if v is not None else "N/A"
+
     rows_text = "\n".join(
-        f"- {f['year']}년: 매출 {f.get('revenue')}, 영업이익 {f.get('operating_profit')}, "
-        f"순이익 {f.get('net_income')}, 부채비율 {f.get('debt_ratio')}, ROE {f.get('roe')}"
+        f"- {f['year']}년: 매출 {fmt(f.get('revenue'))}, 영업이익 {fmt(f.get('operating_profit'))}, "
+        f"순이익 {fmt(f.get('net_income'))}, 영업이익률 {pct(f.get('op_margin'))}, "
+        f"부채비율 {pct(f.get('debt_ratio'))}, ROE {pct(f.get('roe'))}, ROIC {pct(f.get('roic'))}"
         for f in financials
     )
-    prompt = (
-        f"다음은 {stock_name}의 최근 연간 재무 데이터(단위: 원, 비율은 %)이다.\n{rows_text}\n\n"
-        "이 데이터를 바탕으로 매출/이익 추세, 재무 건전성(부채비율), 수익성(ROE) 관점에서 "
-        "3~4문장으로 간결하게 한국어로 요약 코멘트를 작성해줘. 과장된 표현은 피하고 "
-        "사실 기반으로 작성해줘."
-    )
-    commentary = _generate(api_key, model, prompt)
+
+    val_text = ""
+    if valuation:
+        val_text = (
+            f"\n[현재 밸류에이션]\n"
+            f"- PER: {pct(valuation.get('per'))} (선행 PER: {pct(valuation.get('forward_per'))})\n"
+            f"- PBR: {valuation.get('pbr'):.2f}배\n" if valuation.get('pbr') else ""
+            f"- EPS: {fmt(valuation.get('eps'), '원', 1)}\n"
+            f"- 배당수익률: {pct(valuation.get('dividend_yield'))}"
+        ) if valuation else ""
+
+    prompt = f"""당신은 국내 증권사 리서치센터 소속 주식 애널리스트입니다.
+아래 {stock_name}의 재무 데이터를 바탕으로 기관투자자 수준의 심층 분석 리포트를 한국어로 작성하세요.
+
+[연간 재무 데이터 (단위: 억원, 비율: %)]
+{rows_text}
+{val_text}
+
+다음 구조로 작성하되, 각 항목은 구체적인 수치를 인용하며 분석하세요:
+
+## 1. 매출 및 이익 성장성
+- 매출 CAGR 및 성장 트렌드 분석
+- 영업이익·순이익 증감 원인 추론 (마진 압박 or 확장 여부)
+
+## 2. 수익성 분석
+- 영업이익률 추이 및 업종 내 포지셔닝
+- ROE·ROIC를 통한 자본 효율성 평가
+- ROIC vs 자본비용(WACC 추정 8~10%) 비교
+
+## 3. 재무 건전성
+- 부채비율 추이 및 재무 레버리지 평가
+- 이익 대비 부채 수준의 적정성
+
+## 4. 밸류에이션
+- PER·PBR 기준 현재 주가 수준 평가 (저평가/적정/고평가)
+- 성장성과 수익성 대비 밸류에이션 매력도
+
+## 5. 투자 의견 요약
+- 핵심 강점 2~3가지
+- 주요 리스크 2~3가지
+- 종합 의견 (매수 검토 / 관망 / 주의) — 단, 확정적 매수·매도 권유는 하지 말 것
+
+수치는 반드시 데이터에 근거하고, 추론 시 "추정된다", "판단된다" 등의 표현을 사용하세요.
+분량은 600~900자 내외로 작성하세요."""
+
+    commentary = _generate(api_key, model, prompt, timeout=60)
     return f"{commentary}\n\n{DISCLAIMER}"
 
 

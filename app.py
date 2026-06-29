@@ -500,9 +500,10 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
         if cfg["gemini_api_key"]:
             if st.button("AI 코멘트 생성", key=f"gen_commentary_{tab_key}"):
                 try:
-                    with st.spinner("Gemini로 코멘트를 생성하는 중..."):
+                    with st.spinner("Gemini로 애널리스트 리포트를 생성하는 중..."):
                         commentary = generate_financial_commentary(
                             cfg["gemini_api_key"], cfg["gemini_model"], fin["label"], financials,
+                            valuation=valuation,
                         )
                     comm_store = st.session_state.get("fin_commentary", {})
                     comm_store[tab_key] = commentary
