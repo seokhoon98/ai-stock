@@ -136,19 +136,22 @@ def section_account_summary(cfg, summary):
         st.info("KIS API 자격증명을 입력하면 자산 현황이 표시됩니다.")
         return
 
-    cols = st.columns(4)
-    total_eval = summary.get("tot_evlu_amt", "0")
-    profit_amt = summary.get("evlu_pfls_smtl_amt", "0")
+    total_eval   = summary.get("tot_evlu_amt", "0")
+    profit_amt   = summary.get("evlu_pfls_smtl_amt", "0")
     purchase_amt = summary.get("pchs_amt_smtl_amt", "0")
+    cash         = summary.get("dnca_tot_amt", "0")  # 예수금(현금)
     try:
         profit_rate = float(profit_amt) / float(purchase_amt) * 100 if float(purchase_amt) else 0.0
     except (ValueError, ZeroDivisionError):
         profit_rate = 0.0
 
+    cols = st.columns(5)
     cols[0].metric("총평가금액", f"{int(float(total_eval)):,}원")
-    cols[1].metric("매입금액", f"{int(float(purchase_amt)):,}원")
-    cols[2].metric("평가손익", f"{int(float(profit_amt)):,}원")
+    cols[1].metric("매입금액",   f"{int(float(purchase_amt)):,}원")
+    cols[2].metric("평가손익",   f"{int(float(profit_amt)):,}원")
     cols[3].metric("평가수익률", f"{profit_rate:.2f}%")
+    cols[4].metric("예수금(현금)", f"{int(float(cash)):,}원",
+                   help="계좌 내 미투자 현금(예수금)입니다. 주식 매수에 바로 사용 가능한 금액입니다.")
 
 
 # ----------------------------------------------------------------------
