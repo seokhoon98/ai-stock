@@ -16,7 +16,7 @@ import plotly.express as px
 import streamlit as st
 
 from kis_client import KISClient, KISApiError
-from dart_client import fetch_corp_code_map, get_financial_summary, DartApiError
+from dart_client import get_financial_summary, DartApiError
 from ai_helper import (
     generate_financial_commentary,
     generate_rebalancing_table,
@@ -121,10 +121,6 @@ def load_price(app_key, app_secret, account_no, is_virtual, symbol):
     client = get_kis_client(app_key, app_secret, account_no, is_virtual)
     return client.get_price(symbol)
 
-
-@st.cache_data(ttl=60 * 60 * 12, show_spinner=False)
-def load_corp_code_map(dart_api_key):
-    return fetch_corp_code_map(dart_api_key)
 
 
 def kis_ready(cfg):
@@ -396,9 +392,8 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
 
     if st.button("재무 데이터 조회", key=f"fetch_fin_{tab_key}"):
         try:
-            with st.spinner("DART에서 재무 데이터를 가져오는 중..."):
-                corp_map = load_corp_code_map(cfg["dart_api_key"])
-                financials = get_financial_summary(cfg["dart_api_key"], symbol, corp_map, sorted(years))
+            with st.spinner("Yahoo Finance에서 재무 데이터를 가져오는 중..."):
+                financials = get_financial_summary("", symbol, {}, sorted(years))
         except DartApiError as e:
             st.error(str(e))
             return
@@ -445,9 +440,6 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
 
 def section_financial_analysis(cfg, holdings, watchlist_rows):
     st.subheader("📑 핵심 재무 분석")
-    if not cfg["dart_api_key"]:
-        st.warning("DART API 키가 설정되지 않았습니다. (GitHub Secrets → DART_API_KEY)")
-        return
 
     # 보유 종목 우선, 워치리스트 추가
     options = {}
