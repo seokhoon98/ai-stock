@@ -479,11 +479,23 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
         df_raw = pd.DataFrame(financials)
         avail = [c for c in cols_map if c in df_raw.columns]
         df = df_raw[avail].rename(columns=cols_map)
-        money_cols = [v for k, v in cols_map.items() if k in ["revenue", "operating_profit", "net_income"] and v in df.columns]
-        pct_cols   = [v for k, v in cols_map.items() if k in ["op_margin", "debt_ratio", "roe", "roic"] and v in df.columns]
-        fmt = {c: "{:,.0f}" for c in money_cols}
-        fmt.update({c: "{:.1f}" for c in pct_cols})
-        st.dataframe(df.style.format(fmt, na_rep="-"), use_container_width=True, hide_index=True)
+
+        col_help = {
+            "매출액":       ("매출액 (원)", "%d", "기업이 영업활동으로 벌어들인 총 수익입니다.\n• 꾸준히 증가하면 성장하는 기업\n• 급격한 감소는 사업 위축 신호"),
+            "영업이익":     ("영업이익 (원)", "%d", "매출에서 영업비용을 뺀 이익. 본업의 수익성을 나타냅니다.\n• 매출이 늘어도 영업이익이 줄면 비용 증가 문제\n• 영업이익이 마이너스면 본업에서 손실"),
+            "순이익":       ("순이익 (원)", "%d", "영업이익에서 이자·세금·기타 비용까지 모두 뺀 최종 이익입니다.\n• EPS·ROE 계산의 기준\n• 일시적 비용으로 낮아질 수 있으므로 추세로 판단"),
+            "영업이익률(%)":("영업이익률 (%)", "%.1f", "영업이익 ÷ 매출액 × 100. 매출 중 실제 남는 이익 비율입니다.\n• 업종 평균 대비 높으면 경쟁우위 보유\n• 추세 개선 여부가 핵심"),
+            "부채비율(%)":  ("부채비율 (%)", "%.1f", "총부채 ÷ 자기자본 × 100. 재무 건전성 지표입니다.\n• 100% 이하: 안정적 / 200% 이상: 주의\n• 감소 추세면 재무구조 개선 중"),
+            "ROE(%)":       ("ROE (%)", "%.1f", "순이익 ÷ 자기자본 × 100. 자본 대비 수익 창출 능력입니다.\n• 10% 이상: 양호 / 15% 이상: 우수\n• 부채비율과 함께 확인 필요"),
+            "ROIC(%)":      ("ROIC (%)", "%.1f", "세후영업이익 ÷ 투하자본 × 100. 실제 사업 투자 효율입니다.\n• WACC보다 높으면 가치 창출 기업\n• ROE보다 부채 영향을 덜 받아 신뢰도 높음"),
+        }
+
+        col_config = {"연도": st.column_config.NumberColumn("연도", format="%d")}
+        for col_name, (label, fmt_str, help_text) in col_help.items():
+            if col_name in df.columns:
+                col_config[col_name] = st.column_config.NumberColumn(col_name, format=fmt_str, help=help_text)
+
+        st.dataframe(df, column_config=col_config, use_container_width=True, hide_index=True)
 
         if cfg["gemini_api_key"]:
             if st.button("AI 코멘트 생성", key=f"gen_commentary_{tab_key}"):
