@@ -149,9 +149,14 @@ def get_valuation_metrics(stock_code: str) -> dict:
     op_margin     = pct("operatingMargins")
     dividend_yield = pct("dividendYield")
     eps           = _safe(info.get("trailingEps"))
+    debt_ratio    = _safe(info.get("debtToEquity"))
 
-    # 부채비율: debtToEquity는 이미 % 단위로 제공됨 (100배 값)
-    debt_ratio = _safe(info.get("debtToEquity"))
+    # 디버그용: 관련 원본 키 저장
+    debug_keys = {k: info.get(k) for k in [
+        "trailingPE", "forwardPE", "priceToBook", "returnOnEquity",
+        "operatingMargins", "dividendYield", "trailingEps", "debtToEquity",
+        "symbol", "shortName", "currency",
+    ]}
 
     # ROIC: yfinance에 직접 제공 없으므로 재무제표에서 계산
     roic = None
@@ -193,4 +198,5 @@ def get_valuation_metrics(stock_code: str) -> dict:
         "debt_ratio": debt_ratio,
         "dividend_yield": dividend_yield,
         "eps": eps,
+        "_debug": debug_keys,
     }
