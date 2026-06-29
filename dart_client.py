@@ -34,7 +34,7 @@ class DartApiError(Exception):
 
 def fetch_corp_code_map(api_key: str) -> dict:
     """전체 상장사 corpCode.xml을 받아 {종목코드: corp_code} 딕셔너리로 반환."""
-    resp = requests.get(f"{DART_BASE}/corpCode.xml", params={"crtfc_key": api_key}, timeout=20)
+    resp = requests.get(f"{DART_BASE}/corpCode.xml", params={"crtfc_key": api_key}, timeout=60)
     resp.raise_for_status()
     if resp.headers.get("content-type", "").startswith("application/json"):
         # 키 오류 등은 zip이 아니라 json 에러로 내려온다
@@ -81,7 +81,7 @@ def get_annual_financials(api_key: str, corp_code: str, year: int, fs_div: str =
         "reprt_code": "11011",
         "fs_div": fs_div,
     }
-    resp = requests.get(f"{DART_BASE}/fnlttSinglAcntAll.json", params=params, timeout=15)
+    resp = requests.get(f"{DART_BASE}/fnlttSinglAcntAll.json", params=params, timeout=30)
     resp.raise_for_status()
     data = resp.json()
 
