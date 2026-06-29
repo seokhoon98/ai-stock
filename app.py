@@ -43,38 +43,33 @@ def load_secrets():
     Gemini 키는 GEMINI_API_KEY_1, GEMINI_API_KEY_2, ... 순서로 읽어 리스트로 반환한다.
     GEMINI_API_KEY 단일 키도 지원 (하위 호환).
     """
-    def _get(name):
-        try:
-            return st.secrets[name]
-        except Exception:
-            return ""
-
     gemini_keys = []
-    for i in range(1, 11):
-        k = _get(f"GEMINI_API_KEY_{i}")
-        if k:
-            gemini_keys.append(k)
-    if not gemini_keys:
-        single = _get("GEMINI_API_KEY")
-        if single:
-            gemini_keys.append(single)
+    dart_key = ""
+    debug_error = None
+    debug_keys = []
 
-    dart_key = _get("DART_API_KEY")
-
-    # 디버그: 사이드바에 인식된 키 목록 표시 (값은 숨김)
-    with st.sidebar.expander("🔍 Secrets 디버그", expanded=True):
-        found = []
+    try:
+        # st.secrets 전체를 순회해서 실제 저장된 키 이름 확인
+        debug_keys = list(st.secrets.keys())
         for i in range(1, 11):
-            if _get(f"GEMINI_API_KEY_{i}"):
-                found.append(f"GEMINI_API_KEY_{i}")
-        if _get("GEMINI_API_KEY"):
-            found.append("GEMINI_API_KEY")
-        if _get("DART_API_KEY"):
-            found.append("DART_API_KEY")
-        if found:
-            st.write("인식된 Secret 이름:", found)
+            k = st.secrets.get(f"GEMINI_API_KEY_{i}", "")
+            if k:
+                gemini_keys.append(k)
+        if not gemini_keys:
+            k = st.secrets.get("GEMINI_API_KEY", "")
+            if k:
+                gemini_keys.append(k)
+        dart_key = st.secrets.get("DART_API_KEY", "")
+    except Exception as e:
+        debug_error = str(e)
+
+    with st.sidebar.expander("🔍 Secrets 디버그", expanded=True):
+        if debug_error:
+            st.error(f"오류: {debug_error}")
+        if debug_keys:
+            st.write("저장된 Secret 이름 목록:", debug_keys)
         else:
-            st.write("❌ Secrets를 읽지 못했습니다.")
+            st.write("저장된 Secret 없음 (또는 읽기 실패)")
         st.write(f"Gemini 키 개수: {len(gemini_keys)}")
         st.write(f"DART 키 있음: {bool(dart_key)}")
 
