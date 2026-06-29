@@ -43,27 +43,36 @@ def load_secrets():
     Gemini 키는 GEMINI_API_KEY_1, GEMINI_API_KEY_2, ... 순서로 읽어 리스트로 반환한다.
     GEMINI_API_KEY 단일 키도 지원 (하위 호환).
     """
-    try:
-        all_keys = dict(st.secrets)
-    except Exception:
-        all_keys = {}
+    def _get(name):
+        try:
+            return st.secrets[name]
+        except Exception:
+            return ""
 
     gemini_keys = []
     for i in range(1, 11):
-        k = all_keys.get(f"GEMINI_API_KEY_{i}", "")
+        k = _get(f"GEMINI_API_KEY_{i}")
         if k:
             gemini_keys.append(k)
     if not gemini_keys:
-        single = all_keys.get("GEMINI_API_KEY", "")
+        single = _get("GEMINI_API_KEY")
         if single:
             gemini_keys.append(single)
 
-    dart_key = all_keys.get("DART_API_KEY", "")
+    dart_key = _get("DART_API_KEY")
 
     # 디버그: 사이드바에 인식된 키 목록 표시 (값은 숨김)
     with st.sidebar.expander("🔍 Secrets 디버그", expanded=True):
-        if all_keys:
-            st.write("인식된 Secret 이름:", list(all_keys.keys()))
+        found = []
+        for i in range(1, 11):
+            if _get(f"GEMINI_API_KEY_{i}"):
+                found.append(f"GEMINI_API_KEY_{i}")
+        if _get("GEMINI_API_KEY"):
+            found.append("GEMINI_API_KEY")
+        if _get("DART_API_KEY"):
+            found.append("DART_API_KEY")
+        if found:
+            st.write("인식된 Secret 이름:", found)
         else:
             st.write("❌ Secrets를 읽지 못했습니다.")
         st.write(f"Gemini 키 개수: {len(gemini_keys)}")
