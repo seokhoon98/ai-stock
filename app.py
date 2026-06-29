@@ -364,11 +364,7 @@ def section_watchlist(cfg):
                 cfg["kis_app_key"], cfg["kis_app_secret"], cfg["kis_account_no"],
                 cfg["kis_is_virtual"], symbol,
             )
-            # KIS API 여러 필드 시도
-            name = (
-                (price_data.get("hts_kor_isnm") or "").strip()
-                or (price_data.get("bstp_kor_isnm") or "").strip()
-            )
+            name = (price_data.get("hts_kor_isnm") or "").strip()
             # KIS에 없으면 세션 저장 이름 → yfinance 순으로 fallback
             if not name:
                 name = name_map.get(symbol, "")
