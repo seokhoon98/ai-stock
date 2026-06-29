@@ -272,11 +272,33 @@ def section_ai_watchlist_picker(cfg, holdings):
 
     candidates = st.session_state.get("ai_watchlist_candidates")
     if candidates:
-        df = pd.DataFrame(candidates)
+        # 종목명에 네이버 금융 링크 추가
+        display_rows = []
+        for c in candidates:
+            code = c.get("종목코드", "-")
+            name = c.get("종목명", "-")
+            link = f"[{name}](https://finance.naver.com/item/main.naver?code={code})" if code != "-" else name
+            display_rows.append({
+                "종목명": link,
+                "종목코드": code,
+                "테마": c.get("테마", "-"),
+                "현재가": c.get("현재가"),
+                "추천 이유": c.get("추천 이유", "-"),
+            })
+        df = pd.DataFrame(display_rows)
         fmt = {"현재가": "{:,.0f}"} if "현재가" in df.columns and df["현재가"].notna().any() else {}
         st.dataframe(df.style.format(fmt), use_container_width=True, hide_index=True)
         st.caption(AI_DISCLAIMER)
-        if st.button("이 종목들로 워치리스트 교체", key="apply_ai_watchlist"):
+
+        col1, col2 = st.columns(2)
+        if col1.button("워치리스트에 추가", key="add_ai_watchlist"):
+            new_codes = [c["종목코드"] for c in candidates if c.get("종목코드") and c["종목코드"] != "-"]
+            existing = [c.strip() for c in st.session_state.get("watchlist_raw", "").split(",") if c.strip()]
+            merged = existing + [c for c in new_codes if c not in existing]
+            st.session_state["watchlist_raw"] = ",".join(merged)
+            st.session_state["ai_watchlist_candidates"] = None
+            st.rerun()
+        if col2.button("워치리스트 교체", key="apply_ai_watchlist"):
             new_codes = ",".join(
                 c["종목코드"] for c in candidates if c.get("종목코드") and c["종목코드"] != "-"
             )
@@ -318,7 +340,18 @@ def section_watchlist(cfg):
             errors.append(f"{symbol}: {e}")
 
     if rows:
-        df = pd.DataFrame(rows)
+        display = []
+        for r in rows:
+            code = r["종목코드"]
+            name = r["종목명"]
+            display.append({
+                "종목명": f"[{name}](https://finance.naver.com/item/main.naver?code={code})",
+                "종목코드": code,
+                "현재가": r["현재가"],
+                "전일대비": r["전일대비"],
+                "등락률(%)": r["등락률(%)"],
+            })
+        df = pd.DataFrame(display)
         st.dataframe(
             df.style.format({"현재가": "{:,.0f}", "전일대비": "{:,.0f}", "등락률(%)": "{:.2f}"}),
             use_container_width=True, hide_index=True,
@@ -330,40 +363,16 @@ def section_watchlist(cfg):
 
 
 # ----------------------------------------------------------------------
-# 섹션 4: 핵심 재무 분석 (DART + Gemini)
-# 보유 종목을 기본으로, 워치리스트를 추가 선택지로 제공
+# 섹션 4: 핵심 재무 분석 (DART + Gemini) — 종목별 탭
 # ----------------------------------------------------------------------
-def section_financial_analysis(cfg, holdings, watchlist_rows):
-    st.subheader("📑 핵심 재무 분석")
-    if not cfg["dart_api_key"]:
-        st.warning("DART API 키가 설정되지 않았습니다. (GitHub Secrets → DART_API_KEY)")
-        return
+def _render_fin_tab(cfg, label, symbol, tab_key):
+    """단일 종목 재무 분석 탭 내용."""
+    naver_url = f"https://finance.naver.com/item/main.naver?code={symbol}"
+    st.markdown(f"**[{label} ↗]({naver_url})**")
 
-    # 보유 종목 우선, 워치리스트 추가
-    options = {}
-    for h in (holdings or []):
-        name = h.get("prdt_name", "-")
-        code = h.get("pdno", "")
-        if code:
-            options[f"[보유] {name} ({code})"] = code
-    for r in (watchlist_rows or []):
-        code = r["종목코드"]
-        if code not in options.values():
-            options[f"[관심] {r['종목명']} ({code})"] = code
+    years = st.multiselect("조회 연도", [2025, 2024, 2023, 2022], default=[2025, 2024, 2023], key=f"fin_years_{tab_key}")
 
-    if not options:
-        manual_code = st.text_input("종목코드 직접 입력 (예: 005930)", key="manual_fin_code")
-        if manual_code:
-            options[manual_code] = manual_code
-        else:
-            st.write("분석할 종목이 없습니다. KIS 자격증명 입력 또는 종목코드를 직접 입력해주세요.")
-            return
-
-    label = st.selectbox("분석 대상 종목", list(options.keys()), key="fin_stock_select")
-    symbol = options[label]
-    years = st.multiselect("조회 연도", [2025, 2024, 2023, 2022], default=[2025, 2024, 2023], key="fin_years")
-
-    if st.button("재무 데이터 조회", key="fetch_financials"):
+    if st.button("재무 데이터 조회", key=f"fetch_fin_{tab_key}"):
         try:
             with st.spinner("DART에서 재무 데이터를 가져오는 중..."):
                 corp_map = load_corp_code_map(cfg["dart_api_key"])
@@ -376,9 +385,12 @@ def section_financial_analysis(cfg, holdings, watchlist_rows):
             st.warning("해당 종목/연도에 대한 재무 데이터를 찾지 못했습니다.")
             return
 
-        st.session_state["fin_data"] = {"label": label, "financials": financials}
+        fin_store = st.session_state.get("fin_data", {})
+        fin_store[tab_key] = {"label": label, "financials": financials}
+        st.session_state["fin_data"] = fin_store
 
-    fin = st.session_state.get("fin_data")
+    fin_store = st.session_state.get("fin_data", {})
+    fin = fin_store.get(tab_key)
     if fin:
         financials = fin["financials"]
         df = pd.DataFrame(financials)[["year", "revenue", "operating_profit", "net_income", "debt_ratio", "roe"]]
@@ -392,19 +404,55 @@ def section_financial_analysis(cfg, holdings, watchlist_rows):
         )
 
         if cfg["gemini_api_key"]:
-            if st.button("AI 코멘트 생성", key="gen_commentary"):
+            if st.button("AI 코멘트 생성", key=f"gen_commentary_{tab_key}"):
                 try:
                     with st.spinner("Gemini로 코멘트를 생성하는 중..."):
                         commentary = generate_financial_commentary(
                             cfg["gemini_api_key"], cfg["gemini_model"], fin["label"], financials,
                         )
-                    st.session_state["fin_commentary"] = commentary
+                    comm_store = st.session_state.get("fin_commentary", {})
+                    comm_store[tab_key] = commentary
+                    st.session_state["fin_commentary"] = comm_store
                 except AIHelperError as e:
                     st.error(str(e))
 
-        commentary = st.session_state.get("fin_commentary")
-        if commentary:
-            st.markdown(commentary)
+        comm_store = st.session_state.get("fin_commentary", {})
+        if comm_store.get(tab_key):
+            st.markdown(comm_store[tab_key])
+
+
+def section_financial_analysis(cfg, holdings, watchlist_rows):
+    st.subheader("📑 핵심 재무 분석")
+    if not cfg["dart_api_key"]:
+        st.warning("DART API 키가 설정되지 않았습니다. (GitHub Secrets → DART_API_KEY)")
+        return
+
+    # 보유 종목 우선, 워치리스트 추가
+    options = {}
+    for h in (holdings or []):
+        name = h.get("prdt_name", "-")
+        code = h.get("pdno", "")
+        if code:
+            options[name] = code
+    for r in (watchlist_rows or []):
+        code = r["종목코드"]
+        name = r["종목명"]
+        if code not in options.values():
+            options[name] = code
+
+    if not options:
+        manual_code = st.text_input("종목코드 직접 입력 (예: 005930)", key="manual_fin_code")
+        if manual_code:
+            options[manual_code] = manual_code
+        else:
+            st.write("분석할 종목이 없습니다. KIS 자격증명 입력 또는 종목코드를 직접 입력해주세요.")
+            return
+
+    tab_labels = list(options.keys())
+    tabs = st.tabs(tab_labels)
+    for tab, name in zip(tabs, tab_labels):
+        with tab:
+            _render_fin_tab(cfg, name, options[name], tab_key=options[name])
 
 
 # ----------------------------------------------------------------------
