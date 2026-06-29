@@ -272,14 +272,13 @@ def section_ai_watchlist_picker(cfg, holdings):
 
     candidates = st.session_state.get("ai_watchlist_candidates")
     if candidates:
-        # 종목명에 네이버 금융 링크 추가
         display_rows = []
         for c in candidates:
             code = c.get("종목코드", "-")
             name = c.get("종목명", "-")
-            link = f"[{name}](https://finance.naver.com/item/main.naver?code={code})" if code != "-" else name
+            url = f"https://finance.naver.com/item/main.naver?code={code}#{name}" if code != "-" else ""
             display_rows.append({
-                "종목명": link,
+                "종목명": url,
                 "종목코드": code,
                 "테마": c.get("테마", "-"),
                 "현재가": c.get("현재가"),
@@ -287,7 +286,11 @@ def section_ai_watchlist_picker(cfg, holdings):
             })
         df = pd.DataFrame(display_rows)
         fmt = {"현재가": "{:,.0f}"} if "현재가" in df.columns and df["현재가"].notna().any() else {}
-        st.dataframe(df.style.format(fmt), use_container_width=True, hide_index=True)
+        st.dataframe(
+            df.style.format(fmt),
+            column_config={"종목명": st.column_config.LinkColumn("종목명", display_text=r"#(.+)$")},
+            use_container_width=True, hide_index=True,
+        )
         st.caption(AI_DISCLAIMER)
 
         col1, col2 = st.columns(2)
@@ -345,7 +348,7 @@ def section_watchlist(cfg):
             code = r["종목코드"]
             name = r["종목명"]
             display.append({
-                "종목명": f"[{name}](https://finance.naver.com/item/main.naver?code={code})",
+                "종목명": f"https://finance.naver.com/item/main.naver?code={code}#{name}",
                 "종목코드": code,
                 "현재가": r["현재가"],
                 "전일대비": r["전일대비"],
@@ -354,6 +357,7 @@ def section_watchlist(cfg):
         df = pd.DataFrame(display)
         st.dataframe(
             df.style.format({"현재가": "{:,.0f}", "전일대비": "{:,.0f}", "등락률(%)": "{:.2f}"}),
+            column_config={"종목명": st.column_config.LinkColumn("종목명", display_text=r"#(.+)$")},
             use_container_width=True, hide_index=True,
         )
     for err in errors:
@@ -368,7 +372,7 @@ def section_watchlist(cfg):
 def _render_fin_tab(cfg, label, symbol, tab_key):
     """단일 종목 재무 분석 탭 내용."""
     naver_url = f"https://finance.naver.com/item/main.naver?code={symbol}"
-    st.markdown(f"**[{label} ↗]({naver_url})**")
+    st.link_button(f"{label} ↗ 네이버 금융", naver_url)
 
     years = st.multiselect("조회 연도", [2025, 2024, 2023, 2022], default=[2025, 2024, 2023], key=f"fin_years_{tab_key}")
 
