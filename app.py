@@ -298,7 +298,7 @@ def section_ai_watchlist_picker(cfg, holdings):
             new_codes = [c["종목코드"] for c in candidates if c.get("종목코드") and c["종목코드"] != "-"]
             existing = [c.strip() for c in st.session_state.get("watchlist_raw", "").split(",") if c.strip()]
             merged = existing + [c for c in new_codes if c not in existing]
-            st.session_state["watchlist_raw"] = ",".join(merged)
+            st.session_state["watchlist_pending"] = ",".join(merged)
             st.session_state["ai_watchlist_candidates"] = None
             st.rerun()
         if col2.button("워치리스트 교체", key="apply_ai_watchlist"):
@@ -306,7 +306,7 @@ def section_ai_watchlist_picker(cfg, holdings):
                 c["종목코드"] for c in candidates if c.get("종목코드") and c["종목코드"] != "-"
             )
             if new_codes:
-                st.session_state["watchlist_raw"] = new_codes
+                st.session_state["watchlist_pending"] = new_codes
                 st.session_state["ai_watchlist_candidates"] = None
                 st.rerun()
 
@@ -582,6 +582,10 @@ def section_rebalancing(cfg, holdings_df, holdings, summary, watchlist_rows):
 def main():
     st.title("📈 주식 포트폴리오 대시보드")
     st.caption("KIS / DART / Gemini API를 연결하는 개인용 대시보드입니다. 투자 자문이 아닙니다.")
+
+    # 워치리스트 pending 값을 위젯 렌더링 전에 반영
+    if "watchlist_pending" in st.session_state:
+        st.session_state["watchlist_raw"] = st.session_state.pop("watchlist_pending")
 
     cfg = render_sidebar()
 
