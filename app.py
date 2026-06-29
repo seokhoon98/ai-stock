@@ -301,6 +301,9 @@ def section_ai_watchlist_picker(cfg, holdings):
             existing = [c.strip() for c in st.session_state.get("watchlist_raw", "").split(",") if c.strip()]
             merged = existing + [c for c in new_codes if c not in existing]
             st.session_state["watchlist_pending"] = ",".join(merged)
+            name_map = st.session_state.get("watchlist_name_map", {})
+            name_map.update({c["종목코드"]: c["종목명"] for c in candidates if c.get("종목코드") != "-"})
+            st.session_state["watchlist_name_map"] = name_map
             st.session_state["ai_watchlist_candidates"] = None
             st.rerun()
         if col2.button("워치리스트 교체", key="apply_ai_watchlist"):
@@ -309,6 +312,9 @@ def section_ai_watchlist_picker(cfg, holdings):
             )
             if new_codes:
                 st.session_state["watchlist_pending"] = new_codes
+                st.session_state["watchlist_name_map"] = {
+                    c["종목코드"]: c["종목명"] for c in candidates if c.get("종목코드") != "-"
+                }
                 st.session_state["ai_watchlist_candidates"] = None
                 st.rerun()
 
@@ -326,6 +332,7 @@ def section_watchlist(cfg):
         st.write("사이드바에서 관심종목 코드를 입력해주세요.")
         return []
 
+    name_map = st.session_state.get("watchlist_name_map", {})
     rows = []
     errors = []
     for symbol in cfg["watchlist"]:
@@ -334,9 +341,12 @@ def section_watchlist(cfg):
                 cfg["kis_app_key"], cfg["kis_app_secret"], cfg["kis_account_no"],
                 cfg["kis_is_virtual"], symbol,
             )
+            name = (price_data.get("hts_kor_isnm") or "").strip()
+            if not name:
+                name = name_map.get(symbol, symbol)
             rows.append({
                 "종목코드": symbol,
-                "종목명": price_data.get("hts_kor_isnm", "-"),
+                "종목명": name,
                 "현재가": float(price_data.get("stck_prpr", "0") or 0),
                 "전일대비": float(price_data.get("prdy_vrss", "0") or 0),
                 "등락률(%)": float(price_data.get("prdy_ctrt", "0") or 0),
