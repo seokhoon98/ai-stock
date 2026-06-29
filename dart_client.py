@@ -142,27 +142,19 @@ def get_valuation_metrics(stock_code: str) -> dict:
         v = _safe(info.get(key))
         return v * 100 if v is not None else None
 
-    per           = _safe(info.get("trailingPE"))
     forward_per   = _safe(info.get("forwardPE"))
-    pbr           = _safe(info.get("priceToBook"))
     roe           = pct("returnOnEquity")
     op_margin     = pct("operatingMargins")
-    dividend_yield = pct("dividendYield")
-    eps           = _safe(info.get("trailingEps"))
     debt_ratio    = _safe(info.get("debtToEquity"))
+    current_price = _safe(info.get("currentPrice") or info.get("regularMarketPrice"))
+    shares        = _safe(info.get("sharesOutstanding"))
 
-    # 디버그용: 관련 원본 키 저장
-    debug_keys = {k: info.get(k) for k in [
-        "trailingPE", "forwardPE", "priceToBook", "returnOnEquity",
-        "operatingMargins", "dividendYield", "trailingEps", "debtToEquity",
-        "symbol", "shortName", "currency",
-    ]}
-
-    # ROIC: yfinance에 직접 제공 없으므로 재무제표에서 계산
-    roic = None
+    # 재무제표에서 EPS, PER, PBR, ROIC, 배당수익률 직접 계산
+    per = pbr = eps = roic = dividend_yield = None
     try:
         inc = ticker.financials
         bal = ticker.balance_sheet
+
         if inc is not None and not inc.empty and bal is not None and not bal.empty:
             latest_inc = inc.columns[0]
             latest_bal = bal.columns[0]
@@ -175,16 +167,38 @@ def get_valuation_metrics(stock_code: str) -> dict:
                 row = _get_row(bal, candidates)
                 return _safe(row.get(latest_bal)) if row is not None else None
 
+            net_income = iv(["Net Income", "Net Income Common Stockholders"])
             op_profit  = iv(["Operating Income", "Ebit"])
             equity     = bv(["Stockholders Equity", "Common Stock Equity", "Total Equity Gross Minority Interest"])
             total_debt = bv(["Total Debt", "Long Term Debt And Capital Lease Obligation"])
             cash       = bv(["Cash And Cash Equivalents", "Cash Cash Equivalents And Short Term Investments"])
 
+            if net_income and shares and shares > 0:
+                eps = net_income / shares
+            if current_price and eps and eps > 0:
+                per = current_price / eps
+            if current_price and equity and shares and shares > 0:
+                bvps = equity / shares  # 주당순자산
+                if bvps > 0:
+                    pbr = current_price / bvps
+
+            # ROIC
             if op_profit and equity:
                 nopat = op_profit * 0.75
                 ic = equity + (total_debt or 0) - (cash or 0)
                 if ic > 0:
                     roic = nopat / ic * 100
+    except Exception:
+        pass
+
+    # 배당수익률: 최근 1년 배당금 합산
+    try:
+        divs = ticker.dividends
+        if divs is not None and not divs.empty and current_price:
+            one_year_ago = pd.Timestamp.now(tz=divs.index.tz) - pd.DateOffset(years=1)
+            annual_div = divs[divs.index >= one_year_ago].sum()
+            if annual_div > 0:
+                dividend_yield = annual_div / current_price * 100
     except Exception:
         pass
 
@@ -198,5 +212,4 @@ def get_valuation_metrics(stock_code: str) -> dict:
         "debt_ratio": debt_ratio,
         "dividend_yield": dividend_yield,
         "eps": eps,
-        "_debug": debug_keys,
     }

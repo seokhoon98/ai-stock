@@ -416,11 +416,6 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
         def _fmt(v, suffix="", decimals=2):
             return f"{v:.{decimals}f}{suffix}" if v is not None else "-"
 
-        # 디버그: yfinance raw info 확인
-        with st.expander("🔍 yfinance 원본 데이터 (디버그)", expanded=True):
-            st.write("계산된 지표:", {k: v for k, v in valuation.items() if k != "_debug"})
-            st.write("yfinance raw:", valuation.get("_debug", {}))
-
         # ── 현재 밸류에이션 지표 ──
         st.markdown("**📊 현재 밸류에이션**")
         c1, c2, c3, c4 = st.columns(4)
