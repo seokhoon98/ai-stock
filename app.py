@@ -285,10 +285,12 @@ def section_ai_watchlist_picker(cfg, holdings):
                 "🔗": f"https://finance.naver.com/item/main.naver?code={code}" if code != "-" else "",
             })
         df = pd.DataFrame(display_rows)
-        fmt = {"현재가": "{:,.0f}"} if "현재가" in df.columns and df["현재가"].notna().any() else {}
         st.dataframe(
-            df.style.format(fmt),
-            column_config={"🔗": st.column_config.LinkColumn("🔗", display_text="🔗")},
+            df,
+            column_config={
+                "현재가": st.column_config.NumberColumn("현재가", format="%d"),
+                "🔗": st.column_config.LinkColumn("🔗", display_text="🔗"),
+            },
             use_container_width=True, hide_index=True,
         )
         st.caption(AI_DISCLAIMER)
@@ -357,8 +359,13 @@ def section_watchlist(cfg):
             })
         df = pd.DataFrame(display)
         st.dataframe(
-            df.style.format({"현재가": "{:,.0f}", "전일대비": "{:,.0f}", "등락률(%)": "{:.2f}"}),
-            column_config={"🔗": st.column_config.LinkColumn("🔗", display_text="🔗")},
+            df,
+            column_config={
+                "현재가": st.column_config.NumberColumn("현재가", format="%d"),
+                "전일대비": st.column_config.NumberColumn("전일대비", format="%d"),
+                "등락률(%)": st.column_config.NumberColumn("등락률(%)", format="%.2f"),
+                "🔗": st.column_config.LinkColumn("🔗", display_text="🔗"),
+            },
             use_container_width=True, hide_index=True,
         )
     for err in errors:
