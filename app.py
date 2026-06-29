@@ -419,19 +419,53 @@ def _render_fin_tab(cfg, label, symbol, tab_key):
         # ── 현재 밸류에이션 지표 ──
         st.markdown("**📊 현재 밸류에이션**")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("PER (TTM)",   _fmt(valuation.get("per"), "배", 1))
-        c2.metric("선행 PER",    _fmt(valuation.get("forward_per"), "배", 1))
-        c3.metric("PBR",         _fmt(valuation.get("pbr"), "배", 2))
-        c4.metric("EPS",         _fmt(valuation.get("eps"), "원", 0))
+        c1.metric("PER (TTM)", _fmt(valuation.get("per"), "배", 1),
+            help="주가수익비율 (Price/EPS). 주가가 순이익의 몇 배인지를 나타냅니다.\n"
+                 "• 낮을수록 저평가 가능성 (단, 업종 평균과 비교 필요)\n"
+                 "• 10~15배: 일반적 수준 / 20배 이상: 고성장 기대 반영\n"
+                 "• 적자 기업은 PER 계산 불가 (-)")
+        c2.metric("선행 PER", _fmt(valuation.get("forward_per"), "배", 1),
+            help="향후 12개월 예상 이익 기준 PER입니다.\n"
+                 "• TTM PER보다 낮으면 이익 성장이 기대됨\n"
+                 "• 애널리스트 추정치 기반이므로 실제와 다를 수 있음")
+        c3.metric("PBR", _fmt(valuation.get("pbr"), "배", 2),
+            help="주가순자산비율 (Price/Book Value). 주가가 순자산의 몇 배인지를 나타냅니다.\n"
+                 "• 1배 미만: 청산가치보다 싸게 거래 (저평가 신호일 수 있음)\n"
+                 "• 높을수록 시장이 높은 프리미엄을 부여\n"
+                 "• 금융주·제조업에서 특히 유용한 지표")
+        c4.metric("EPS", _fmt(valuation.get("eps"), "원", 0),
+            help="주당순이익 (Earnings Per Share). 주식 1주당 벌어들인 순이익입니다.\n"
+                 "• 높을수록 수익성이 좋음\n"
+                 "• PER 계산의 기준값 (주가 ÷ EPS = PER)")
 
         c5, c6, c7, c8 = st.columns(4)
-        c5.metric("ROE",         _fmt(valuation.get("roe"), "%", 1))
-        c6.metric("ROIC",        _fmt(valuation.get("roic"), "%", 1))
-        c7.metric("영업이익률",   _fmt(valuation.get("op_margin"), "%", 1))
-        c8.metric("부채비율",     _fmt(valuation.get("debt_ratio"), "%", 1))
+        c5.metric("ROE", _fmt(valuation.get("roe"), "%", 1),
+            help="자기자본이익률 (Return on Equity). 자본 대비 순이익 비율입니다.\n"
+                 "• 10% 이상: 양호 / 15% 이상: 우수\n"
+                 "• 높을수록 주주 자본을 효율적으로 활용\n"
+                 "• 단, 부채를 많이 쓸수록 ROE가 높아질 수 있어 부채비율과 함께 봐야 함")
+        c6.metric("ROIC", _fmt(valuation.get("roic"), "%", 1),
+            help="투하자본이익률 (Return on Invested Capital). 실제 사업에 투입한 자본 대비 세후 영업이익 비율입니다.\n"
+                 "• WACC(자본비용)보다 높으면 가치 창출 기업\n"
+                 "• 10% 이상: 양호 / ROE보다 신뢰도 높은 수익성 지표\n"
+                 "• 법인세율 25% 가정하여 계산")
+        c7.metric("영업이익률", _fmt(valuation.get("op_margin"), "%", 1),
+            help="영업이익 ÷ 매출액 × 100. 매출에서 실제 영업으로 남긴 이익 비율입니다.\n"
+                 "• 업종마다 기준이 다름 (IT/바이오: 높음 / 유통·제조: 낮음)\n"
+                 "• 10% 이상: 일반적으로 양호\n"
+                 "• 추세가 개선되는지가 중요")
+        c8.metric("부채비율", _fmt(valuation.get("debt_ratio"), "%", 1),
+            help="총부채 ÷ 자기자본 × 100. 자본 대비 부채의 크기입니다.\n"
+                 "• 100% 이하: 안정적 / 200% 이상: 주의 필요\n"
+                 "• 업종 특성상 금융·인프라주는 부채비율이 높은 편\n"
+                 "• ROE와 함께 보면 레버리지 효과 파악 가능")
 
-        c9, c10, *_ = st.columns(4)
-        c9.metric("배당수익률",   _fmt(valuation.get("dividend_yield"), "%", 2))
+        c9, *_ = st.columns(4)
+        c9.metric("배당수익률", _fmt(valuation.get("dividend_yield"), "%", 2),
+            help="연간 배당금 ÷ 현재 주가 × 100. 주가 대비 배당 수익 비율입니다.\n"
+                 "• 3% 이상: 배당주로서 매력적\n"
+                 "• 너무 높으면 주가 하락 또는 배당 유지 불가 가능성 점검 필요\n"
+                 "• 무배당 종목은 '-'로 표시")
 
         st.divider()
 
