@@ -129,7 +129,16 @@ def kis_ready(cfg):
 
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def _get_stock_name_yf(symbol: str) -> str:
-    """KIS에서 종목명을 가져오지 못할 때 yfinance로 fallback."""
+    """KIS에서 종목명을 가져오지 못할 때 pykrx → yfinance 순으로 fallback."""
+    # 1순위: pykrx (KRX 직접 조회, 한국어 정식 명칭)
+    try:
+        from pykrx import stock as pykrx_stock
+        name = pykrx_stock.get_market_ticker_name(symbol)
+        if name:
+            return name
+    except Exception:
+        pass
+    # 2순위: yfinance
     try:
         import yfinance as yf
         for suffix in [".KS", ".KQ"]:
@@ -139,7 +148,7 @@ def _get_stock_name_yf(symbol: str) -> str:
                 return name
     except Exception:
         pass
-    return symbol  # 최후엔 코드 자체를 표시
+    return symbol
 
 
 # ----------------------------------------------------------------------
