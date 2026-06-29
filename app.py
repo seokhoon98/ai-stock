@@ -30,7 +30,7 @@ from ai_helper import (
 
 st.set_page_config(page_title="주식 포트폴리오 대시보드", layout="wide")
 
-DEFAULT_WATCHLIST = "329180,012450,277810,141080,247540"
+DEFAULT_WATCHLIST = ""
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
@@ -45,12 +45,8 @@ def load_secrets():
     """
     gemini_keys = []
     dart_key = ""
-    debug_error = None
-    debug_keys = []
 
     try:
-        # st.secrets 전체를 순회해서 실제 저장된 키 이름 확인
-        debug_keys = list(st.secrets.keys())
         for i in range(1, 11):
             k = st.secrets.get(f"GEMINI_API_KEY_{i}", "")
             if k:
@@ -60,18 +56,8 @@ def load_secrets():
             if k:
                 gemini_keys.append(k)
         dart_key = st.secrets.get("DART_API_KEY", "")
-    except Exception as e:
-        debug_error = str(e)
-
-    with st.sidebar.expander("🔍 Secrets 디버그", expanded=True):
-        if debug_error:
-            st.error(f"오류: {debug_error}")
-        if debug_keys:
-            st.write("저장된 Secret 이름 목록:", debug_keys)
-        else:
-            st.write("저장된 Secret 없음 (또는 읽기 실패)")
-        st.write(f"Gemini 키 개수: {len(gemini_keys)}")
-        st.write(f"DART 키 있음: {bool(dart_key)}")
+    except Exception:
+        pass
 
     return gemini_keys, dart_key
 
